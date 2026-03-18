@@ -1,0 +1,33 @@
+{
+  "compilerOptions": {
+    // --- ¿A qué versión de JavaScript compila? ---
+    // ES2022 es compatible con Node.js 18+ y soporta async/await, optional chaining (?.), etc.
+    "target": "ES2022",
+
+    // --- Sistema de módulos ---
+    // "commonjs" es el estándar de Node.js: usa require() internamente.
+    // Más simple que "nodenext" (ESM) y no requiere poner ".js" en los imports.
+    "module": "commonjs",
+
+    // --- Carpetas ---
+    "rootDir": "./src",   // TypeScript busca los archivos .ts aquí
+    "outDir": "./dist",   // Los archivos .js compilados se guardan aquí (NUNCA en src/)
+
+    // --- Verificaciones estrictas ---
+    // Con "strict: true" TypeScript activa todas sus validaciones más exigentes.
+    // Esto detecta errores antes de que el código se ejecute.
+    "strict": true,
+
+    // --- Compatibilidad de imports ---
+    // Permite escribir: import express from 'express'
+    // Sin esto habría que escribir: import * as express from 'express'
+    "esModuleInterop": true,
+
+    // Evita errores de tipos en librerías de terceros (node_modules)
+    "skipLibCheck": true
+  },
+  // Solo compilar los archivos dentro de src/
+  "include": ["src/**/*"],
+  // Ignorar estas carpetas al compilar
+  "exclude": ["node_modules", "dist"]
+}
