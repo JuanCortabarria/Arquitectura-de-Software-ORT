@@ -4,9 +4,8 @@ import { auditRepository } from '../src/repositories/auditRepository';
 
 // Tests unitarios del AssetService.
 //
-// El service trabaja sobre los repositorios reales (en memoria), por
-// lo que entre cada test los reseteamos para que no se "contaminen"
-// entre sí.
+// Desde la Parte 3, create() es async porque usa el Ingestion Pipeline.
+// Por eso todos los tests que llaman a create() usan async/await.
 
 describe('assetService', () => {
   beforeEach(() => {
@@ -14,8 +13,8 @@ describe('assetService', () => {
     auditRepository._reset();
   });
 
-  it('crea un activo con un id UUID válido', () => {
-    const asset = assetService.create({
+  it('crea un activo con un id UUID válido', async () => {
+    const asset = await assetService.create({
       symbol: 'btc',
       name: 'Bitcoin',
       quantity: 1,
@@ -30,8 +29,8 @@ describe('assetService', () => {
     expect(asset.symbol).toBe('BTC');
   });
 
-  it('al crear un activo, registra automáticamente un log CREATE', () => {
-    const asset = assetService.create({
+  it('al crear un activo, registra automáticamente un log CREATE', async () => {
+    const asset = await assetService.create({
       symbol: 'ETH',
       name: 'Ethereum',
       quantity: 2,
@@ -44,26 +43,26 @@ describe('assetService', () => {
     expect(history[0]!.assetId).toBe(asset.id);
   });
 
-  it('no permite crear dos activos con el mismo symbol', () => {
-    assetService.create({
+  it('no permite crear dos activos con el mismo symbol', async () => {
+    await assetService.create({
       symbol: 'BTC',
       name: 'Bitcoin',
       quantity: 1,
       purchasePrice: 50000,
     });
 
-    expect(() =>
+    await expect(
       assetService.create({
         symbol: 'btc', // mismo símbolo, distinto case
         name: 'Bitcoin',
         quantity: 5,
         purchasePrice: 60000,
       }),
-    ).toThrow(/CONFLICT/);
+    ).rejects.toThrow(/CONFLICT/);
   });
 
-  it('update con quantity <= 0 lanza error de validación (no saldos negativos)', () => {
-    const asset = assetService.create({
+  it('update con quantity <= 0 lanza error de validación (no saldos negativos)', async () => {
+    const asset = await assetService.create({
       symbol: 'BTC',
       name: 'Bitcoin',
       quantity: 1,
@@ -79,8 +78,8 @@ describe('assetService', () => {
     ).toThrow(/VALIDATION/);
   });
 
-  it('update existente registra un log UPDATE', () => {
-    const asset = assetService.create({
+  it('update existente registra un log UPDATE', async () => {
+    const asset = await assetService.create({
       symbol: 'BTC',
       name: 'Bitcoin',
       quantity: 1,
@@ -93,8 +92,8 @@ describe('assetService', () => {
     expect(history.map(h => h.action)).toEqual(['CREATE', 'UPDATE']);
   });
 
-  it('delete registra un log DELETE y conserva el historial', () => {
-    const asset = assetService.create({
+  it('delete registra un log DELETE y conserva el historial', async () => {
+    const asset = await assetService.create({
       symbol: 'BTC',
       name: 'Bitcoin',
       quantity: 1,
@@ -111,8 +110,8 @@ describe('assetService', () => {
     expect(history.map(h => h.action)).toEqual(['CREATE', 'DELETE']);
   });
 
-  it('getHistory devuelve los eventos en orden cronológico', () => {
-    const asset = assetService.create({
+  it('getHistory devuelve los eventos en orden cronológico', async () => {
+    const asset = await assetService.create({
       symbol: 'BTC',
       name: 'Bitcoin',
       quantity: 1,

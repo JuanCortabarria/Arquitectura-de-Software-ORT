@@ -46,7 +46,7 @@ describe('marketService', () => {
 
   describe('getPriceForAsset (con fetch mockeado)', () => {
     it('devuelve el precio actual y la ganancia calculada', async () => {
-      const asset = assetService.create({
+      const asset = await assetService.create({
         symbol: 'BTC',
         name: 'Bitcoin',
         quantity: 2,
@@ -75,7 +75,7 @@ describe('marketService', () => {
     });
 
     it('lanza UPSTREAM si la API externa responde con error', async () => {
-      const asset = assetService.create({
+      const asset = await assetService.create({
         symbol: 'BTC',
         name: 'Bitcoin',
         quantity: 1,

@@ -4,6 +4,10 @@ import type { AuditLog } from '../models/auditLog';
 import { assetRepository } from '../repositories/assetRepository';
 import { auditRepository } from '../repositories/auditRepository';
 import type { CreateAssetInput, UpdateAssetInput } from '../schemas/asset.schema';
+import { runPipeline } from '../pipeline/pipeline';
+import { validationFilter } from '../pipeline/ingestion/validationFilter';
+import { normalizationFilter } from '../pipeline/ingestion/normalizationFilter';
+import { currencyConversionFilter } from '../pipeline/ingestion/currencyConversionFilter';
 
 // AssetService: el corazón de la lógica de negocio.
 //
@@ -12,10 +16,13 @@ import type { CreateAssetInput, UpdateAssetInput } from '../schemas/asset.schema
 // automática un registro en el log de auditoría. El controller no se
 // entera de esto, solo llama al service.
 //
+// A partir de la Parte 3, el método create() utiliza el Ingestion
+// Pipeline (patrón Pipes & Filters) para validar, normalizar y
+// convertir moneda antes de guardar.
+//
 // Los errores se tiran como Error con un prefijo ('CONFLICT:',
 // 'NOT_FOUND:', 'VALIDATION:'), y el controller se encarga de
-// traducirlos al código HTTP correspondiente. Es una forma simple de
-// manejar errores sin armar una jerarquía de clases de error.
+// traducirlos al código HTTP correspondiente.
 
 function buildAuditLog(assetId: string, action: AuditLog['action']): AuditLog {
   return {
@@ -37,22 +44,31 @@ export const assetService = {
     return asset;
   },
 
-  create(data: CreateAssetInput): Asset {
-    // Normalizamos el símbolo a mayúsculas para que "btc" y "BTC" sean
-    // el mismo activo.
-    const symbol = data.symbol.toUpperCase();
+  async create(data: unknown): Promise<Asset> {
+    // El Ingestion Pipeline ejecuta en orden:
+    //   1. validationFilter  → verifica estructura con Zod
+    //   2. normalizationFilter → symbol a mayúsculas, trim espacios
+    //   3. currencyConversionFilter → convierte a USD si es otra moneda
+    //
+    // Si algún filtro falla, el pipeline se detiene (fail-fast).
+    const validated = await runPipeline<any>('IngestionPipeline', data, [
+      validationFilter,
+      normalizationFilter,
+      currencyConversionFilter,
+    ]);
 
-    // Regla de negocio: no permitir dos activos con el mismo symbol.
-    if (assetRepository.findBySymbol(symbol)) {
+    // Regla de negocio fuera del pipeline: no permitir duplicados.
+    const result = validated as CreateAssetInput;
+    if (assetRepository.findBySymbol(result.symbol)) {
       throw new Error('CONFLICT: Ya existe un activo con ese símbolo');
     }
 
     const asset: Asset = {
       id: uuidv4(),
-      symbol,
-      name: data.name,
-      quantity: data.quantity,
-      purchasePrice: data.purchasePrice,
+      symbol: result.symbol,
+      name: result.name,
+      quantity: result.quantity,
+      purchasePrice: result.purchasePrice,
     };
 
     assetRepository.create(asset);

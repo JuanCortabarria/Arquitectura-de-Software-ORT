@@ -1,4 +1,5 @@
 import type { Request, Response } from 'express';
+import { ZodError } from 'zod';
 import { assetService } from '../services/assetService';
 import { logger } from '../config/logger';
 
@@ -9,11 +10,17 @@ import { logger } from '../config/logger';
 //   2) llama al service,
 //   3) responde con el código HTTP adecuado.
 //
-// El manejo de errores es simple: capturamos el Error del service y
-// según su prefijo ('NOT_FOUND', 'CONFLICT', 'VALIDATION') devolvemos
-// el código HTTP correspondiente.
+// El manejo de errores detecta prefijos del service ('NOT_FOUND',
+// 'CONFLICT', 'VALIDATION') y ZodError del pipeline de validación.
 
 function handleError(err: unknown, res: Response): void {
+  // Si el pipeline de validación tira un ZodError, devolvemos 400
+  // con el detalle de cada campo inválido.
+  if (err instanceof ZodError) {
+    res.status(400).json({ message: 'Datos inválidos', errors: err.issues });
+    return;
+  }
+
   const message = err instanceof Error ? err.message : 'Error desconocido';
 
   if (message.startsWith('NOT_FOUND')) {
@@ -48,9 +55,10 @@ export const assetController = {
     }
   },
 
-  create(req: Request, res: Response): void {
+  async create(req: Request, res: Response): Promise<void> {
     try {
-      const asset = assetService.create(req.body);
+      // create() ahora es async porque usa el Ingestion Pipeline.
+      const asset = await assetService.create(req.body);
       logger.info(`Activo creado: ${asset.id} (${asset.symbol})`);
       res.status(201).json(asset);
     } catch (err) {
