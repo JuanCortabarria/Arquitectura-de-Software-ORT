@@ -4,13 +4,14 @@ import { auditRepository } from '../src/repositories/auditRepository';
 
 // Tests unitarios del AssetService.
 //
-// Desde la Parte 3, create() es async porque usa el Ingestion Pipeline.
-// Por eso todos los tests que llaman a create() usan async/await.
+// A partir de la Parte 4, todos los métodos del service son async
+// (porque interactúan con MySQL y MongoDB). Por eso todos los tests
+// usan async/await, y los expect de errores usan rejects.toThrow().
 
 describe('assetService', () => {
-  beforeEach(() => {
-    assetRepository._reset();
-    auditRepository._reset();
+  beforeEach(async () => {
+    await assetRepository._reset();
+    await auditRepository._reset();
   });
 
   it('crea un activo con un id UUID válido', async () => {
@@ -37,7 +38,7 @@ describe('assetService', () => {
       purchasePrice: 3000,
     });
 
-    const history = assetService.getHistory(asset.id);
+    const history = await assetService.getHistory(asset.id);
     expect(history).toHaveLength(1);
     expect(history[0]!.action).toBe('CREATE');
     expect(history[0]!.assetId).toBe(asset.id);
@@ -69,13 +70,13 @@ describe('assetService', () => {
       purchasePrice: 50000,
     });
 
-    expect(() =>
+    await expect(
       assetService.update(asset.id, { quantity: -5 }),
-    ).toThrow(/VALIDATION/);
+    ).rejects.toThrow(/VALIDATION/);
 
-    expect(() =>
+    await expect(
       assetService.update(asset.id, { quantity: 0 }),
-    ).toThrow(/VALIDATION/);
+    ).rejects.toThrow(/VALIDATION/);
   });
 
   it('update existente registra un log UPDATE', async () => {
@@ -86,9 +87,9 @@ describe('assetService', () => {
       purchasePrice: 50000,
     });
 
-    assetService.update(asset.id, { quantity: 2 });
+    await assetService.update(asset.id, { quantity: 2 });
 
-    const history = assetService.getHistory(asset.id);
+    const history = await assetService.getHistory(asset.id);
     expect(history.map(h => h.action)).toEqual(['CREATE', 'UPDATE']);
   });
 
@@ -100,13 +101,13 @@ describe('assetService', () => {
       purchasePrice: 50000,
     });
 
-    assetService.delete(asset.id);
+    await assetService.delete(asset.id);
 
     // El activo ya no existe...
-    expect(() => assetService.getById(asset.id)).toThrow(/NOT_FOUND/);
+    await expect(assetService.getById(asset.id)).rejects.toThrow(/NOT_FOUND/);
 
     // ...pero el historial sigue disponible (auditoría inmutable).
-    const history = assetService.getHistory(asset.id);
+    const history = await assetService.getHistory(asset.id);
     expect(history.map(h => h.action)).toEqual(['CREATE', 'DELETE']);
   });
 
@@ -117,14 +118,14 @@ describe('assetService', () => {
       quantity: 1,
       purchasePrice: 50000,
     });
-    assetService.update(asset.id, { quantity: 2 });
-    assetService.update(asset.id, { quantity: 3 });
+    await assetService.update(asset.id, { quantity: 2 });
+    await assetService.update(asset.id, { quantity: 3 });
 
-    const history = assetService.getHistory(asset.id);
+    const history = await assetService.getHistory(asset.id);
     expect(history).toHaveLength(3);
     for (let i = 1; i < history.length; i++) {
-      expect(history[i]!.timestamp.getTime())
-        .toBeGreaterThanOrEqual(history[i - 1]!.timestamp.getTime());
+      expect(new Date(history[i]!.timestamp).getTime())
+        .toBeGreaterThanOrEqual(new Date(history[i - 1]!.timestamp).getTime());
     }
   });
 });

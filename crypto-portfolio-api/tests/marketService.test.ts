@@ -12,9 +12,9 @@ import type { Asset } from '../src/models/asset';
 // queramos.
 
 describe('marketService', () => {
-  beforeEach(() => {
-    assetRepository._reset();
-    auditRepository._reset();
+  beforeEach(async () => {
+    await assetRepository._reset();
+    await auditRepository._reset();
     process.env.CRYPTO_API_URL = 'https://api.fake/price';
   });
 
