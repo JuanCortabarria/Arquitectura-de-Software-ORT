@@ -5,22 +5,14 @@ version: '3.8'
 #   - mongodb: Base de datos documental para AuditLog (Mongoose)
 #   - api:     API REST Node.js/Express
 #
-# Mejoras implementadas:
-#   - Limpieza de volúmenes al hacer down: docker compose down -v
-#   - API con restart policy para resiliencia
-#   - Healthchecks en ambas BDs
-#   - Timeouts y retries configurados
-#
 # Uso:
 #   docker compose up         → levanta los 3 servicios
 #   docker compose down       → detiene y elimina contenedores
 #   docker compose down -v    → también elimina los volúmenes (datos)
-#   docker compose logs -f    → ver logs en vivo
 
 services:
   mysql:
     image: mysql:8.0
-    container_name: crypto_mysql
     environment:
       MYSQL_ROOT_PASSWORD: secret
       MYSQL_DATABASE: crypto_portfolio
@@ -33,12 +25,9 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    networks:
-      - crypto_network
 
   mongodb:
     image: mongo:7
-    container_name: crypto_mongodb
     ports:
       - '27017:27017'
     volumes:
@@ -48,15 +37,9 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    networks:
-      - crypto_network
 
   api:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: crypto_api
-    restart: unless-stopped
+    build: .
     ports:
       - '4000:4000'
     environment:
@@ -75,15 +58,7 @@ services:
         condition: service_healthy
       mongodb:
         condition: service_healthy
-    networks:
-      - crypto_network
-    # Graceful shutdown: espera hasta 30s para cerrar conexiones limpiamente
-    stop_grace_period: 30s
 
 volumes:
   mysql_data:
   mongo_data:
-
-networks:
-  crypto_network:
-    driver: bridge
