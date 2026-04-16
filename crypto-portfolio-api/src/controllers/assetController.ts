@@ -10,6 +10,9 @@ import { logger } from '../config/logger';
 //   2) llama al service,
 //   3) responde con el código HTTP adecuado.
 //
+// A partir de la Parte 4, todos los handlers son async porque los
+// services ahora interactúan con bases de datos reales (MySQL + MongoDB).
+//
 // El manejo de errores detecta prefijos del service ('NOT_FOUND',
 // 'CONFLICT', 'VALIDATION') y ZodError del pipeline de validación.
 
@@ -41,14 +44,19 @@ function handleError(err: unknown, res: Response): void {
 }
 
 export const assetController = {
-  getAll(_req: Request, res: Response): void {
-    res.status(200).json(assetService.getAll());
+  async getAll(_req: Request, res: Response): Promise<void> {
+    try {
+      const assets = await assetService.getAll();
+      res.status(200).json(assets);
+    } catch (err) {
+      handleError(err, res);
+    }
   },
 
-  getById(req: Request, res: Response): void {
+  async getById(req: Request, res: Response): Promise<void> {
     try {
       const id = String(req.params.id);
-      const asset = assetService.getById(id);
+      const asset = await assetService.getById(id);
       res.status(200).json(asset);
     } catch (err) {
       handleError(err, res);
@@ -57,7 +65,8 @@ export const assetController = {
 
   async create(req: Request, res: Response): Promise<void> {
     try {
-      // create() ahora es async porque usa el Ingestion Pipeline.
+      // create() ahora es async porque usa el Ingestion Pipeline
+      // y además persiste en MySQL + MongoDB.
       const asset = await assetService.create(req.body);
       logger.info(`Activo creado: ${asset.id} (${asset.symbol})`);
       res.status(201).json(asset);
@@ -66,10 +75,10 @@ export const assetController = {
     }
   },
 
-  update(req: Request, res: Response): void {
+  async update(req: Request, res: Response): Promise<void> {
     try {
       const id = String(req.params.id);
-      const asset = assetService.update(id, req.body);
+      const asset = await assetService.update(id, req.body);
       logger.info(`Activo actualizado: ${asset.id}`);
       res.status(200).json(asset);
     } catch (err) {
@@ -77,10 +86,10 @@ export const assetController = {
     }
   },
 
-  delete(req: Request, res: Response): void {
+  async delete(req: Request, res: Response): Promise<void> {
     try {
       const id = String(req.params.id);
-      assetService.delete(id);
+      await assetService.delete(id);
       logger.info(`Activo eliminado: ${id}`);
       res.status(204).send();
     } catch (err) {
@@ -88,9 +97,13 @@ export const assetController = {
     }
   },
 
-  getHistory(req: Request, res: Response): void {
-    const id = String(req.params.id);
-    const history = assetService.getHistory(id);
-    res.status(200).json(history);
+  async getHistory(req: Request, res: Response): Promise<void> {
+    try {
+      const id = String(req.params.id);
+      const history = await assetService.getHistory(id);
+      res.status(200).json(history);
+    } catch (err) {
+      handleError(err, res);
+    }
   },
 };

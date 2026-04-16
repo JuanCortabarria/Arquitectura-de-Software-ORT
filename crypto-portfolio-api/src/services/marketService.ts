@@ -34,7 +34,7 @@ export const marketService = {
   },
 
   async getPriceForAsset(id: string): Promise<PriceResult> {
-    const asset = assetRepository.findById(id);
+    const asset = await assetRepository.findById(id);
     if (!asset) throw new Error('NOT_FOUND: Activo no encontrado');
 
     const apiUrl = process.env.CRYPTO_API_URL;

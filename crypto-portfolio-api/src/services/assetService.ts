@@ -20,6 +20,10 @@ import { currencyConversionFilter } from '../pipeline/ingestion/currencyConversi
 // Pipeline (patrón Pipes & Filters) para validar, normalizar y
 // convertir moneda antes de guardar.
 //
+// A partir de la Parte 4, los repositorios son async (MySQL + MongoDB),
+// por lo que todos los métodos del service también pasan a ser async.
+// La lógica de negocio NO cambia: solo se agrega async/await.
+//
 // Los errores se tiran como Error con un prefijo ('CONFLICT:',
 // 'NOT_FOUND:', 'VALIDATION:'), y el controller se encarga de
 // traducirlos al código HTTP correspondiente.
@@ -34,12 +38,12 @@ function buildAuditLog(assetId: string, action: AuditLog['action']): AuditLog {
 }
 
 export const assetService = {
-  getAll(): Asset[] {
+  async getAll(): Promise<Asset[]> {
     return assetRepository.findAll();
   },
 
-  getById(id: string): Asset {
-    const asset = assetRepository.findById(id);
+  async getById(id: string): Promise<Asset> {
+    const asset = await assetRepository.findById(id);
     if (!asset) throw new Error('NOT_FOUND: Activo no encontrado');
     return asset;
   },
@@ -59,7 +63,7 @@ export const assetService = {
 
     // Regla de negocio fuera del pipeline: no permitir duplicados.
     const result = validated as CreateAssetInput;
-    if (assetRepository.findBySymbol(result.symbol)) {
+    if (await assetRepository.findBySymbol(result.symbol)) {
       throw new Error('CONFLICT: Ya existe un activo con ese símbolo');
     }
 
@@ -71,15 +75,15 @@ export const assetService = {
       purchasePrice: result.purchasePrice,
     };
 
-    assetRepository.create(asset);
-    auditRepository.append(buildAuditLog(asset.id, 'CREATE'));
+    await assetRepository.create(asset);
+    await auditRepository.append(buildAuditLog(asset.id, 'CREATE'));
 
     return asset;
   },
 
-  update(id: string, data: UpdateAssetInput): Asset {
+  async update(id: string, data: UpdateAssetInput): Promise<Asset> {
     // Verificamos primero que el activo exista.
-    const existing = assetRepository.findById(id);
+    const existing = await assetRepository.findById(id);
     if (!existing) throw new Error('NOT_FOUND: Activo no encontrado');
 
     // Regla de negocio: no permitir saldos negativos.
@@ -93,23 +97,23 @@ export const assetService = {
       throw new Error('VALIDATION: purchasePrice debe ser mayor a 0');
     }
 
-    const updated = assetRepository.update(id, data)!;
-    auditRepository.append(buildAuditLog(id, 'UPDATE'));
+    const updated = (await assetRepository.update(id, data))!;
+    await auditRepository.append(buildAuditLog(id, 'UPDATE'));
 
     return updated;
   },
 
-  delete(id: string): void {
-    const ok = assetRepository.delete(id);
+  async delete(id: string): Promise<void> {
+    const ok = await assetRepository.delete(id);
     if (!ok) throw new Error('NOT_FOUND: Activo no encontrado');
 
     // Importante: el log se crea DESPUÉS de borrar, pero como el
     // auditRepository es independiente, el historial sigue disponible
     // aunque el activo ya no exista.
-    auditRepository.append(buildAuditLog(id, 'DELETE'));
+    await auditRepository.append(buildAuditLog(id, 'DELETE'));
   },
 
-  getHistory(id: string): AuditLog[] {
+  async getHistory(id: string): Promise<AuditLog[]> {
     return auditRepository.findByAssetId(id);
   },
 };
