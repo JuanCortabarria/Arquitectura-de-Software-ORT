@@ -82,10 +82,6 @@ export const assetService = {
   },
 
   async update(id: string, data: UpdateAssetInput): Promise<Asset> {
-    // Verificamos primero que el activo exista.
-    const existing = await assetRepository.findById(id);
-    if (!existing) throw new Error('NOT_FOUND: Activo no encontrado');
-
     // Regla de negocio: no permitir saldos negativos.
     // Zod ya valida que, si vienen, sean > 0. Esto es una segunda barrera
     // por si el service se llama desde otro lugar sin pasar por el
@@ -97,9 +93,14 @@ export const assetService = {
       throw new Error('VALIDATION: purchasePrice debe ser mayor a 0');
     }
 
-    const updated = (await assetRepository.update(id, data))!;
-    await auditRepository.append(buildAuditLog(id, 'UPDATE'));
+    // Una sola consulta a la DB: si no existe, update devuelve null.
+    // Esto elimina el doble lookup (findById + update) que existía antes,
+    // y también elimina la aserción ! que era potencialmente peligrosa
+    // ante race conditions entre las dos consultas.
+    const updated = await assetRepository.update(id, data);
+    if (!updated) throw new Error('NOT_FOUND: Activo no encontrado');
 
+    await auditRepository.append(buildAuditLog(id, 'UPDATE'));
     return updated;
   },
 

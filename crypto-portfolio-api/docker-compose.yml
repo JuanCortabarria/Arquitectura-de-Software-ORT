@@ -1,5 +1,3 @@
-version: '3.8'
-
 # Orquestación de servicios para Parte 4:
 #   - mysql:   Base de datos relacional para Asset (Sequelize)
 #   - mongodb: Base de datos documental para AuditLog (Mongoose)

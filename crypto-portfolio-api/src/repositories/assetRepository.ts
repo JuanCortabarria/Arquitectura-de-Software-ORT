@@ -49,7 +49,9 @@ export const assetRepository = {
   },
 
   // Solo para tests: vacía la tabla entre cada caso.
+  // truncate: true usa SQL TRUNCATE en vez de DELETE — es más rápido
+  // porque no loguea cada fila eliminada individualmente.
   async _reset(): Promise<void> {
-    await AssetModel.destroy({ where: {} });
+    await AssetModel.destroy({ where: {}, truncate: true });
   },
 };
