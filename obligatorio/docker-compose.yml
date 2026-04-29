@@ -1,0 +1,171 @@
+name: move
+
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    container_name: move-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-move}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-move_local_dev}
+      POSTGRES_DB: ${POSTGRES_DB:-move}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/00-init.sql:ro
+      - ./db/migrations/001_initial_schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./db/seeds/categories.sql:/docker-entrypoint-initdb.d/02-categories.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-move} -d ${POSTGRES_DB:-move}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks: [move-net]
+
+  redis:
+    image: redis:7-alpine
+    container_name: move-redis
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks: [move-net]
+
+  move-api:
+    build:
+      context: ./services/move-api
+      dockerfile: Dockerfile
+    container_name: move-api
+    env_file: .env
+    environment:
+      NODE_ENV: development
+      PORT: ${MOVE_API_PORT:-3000}
+    ports:
+      - "${MOVE_API_PORT:-3000}:3000"
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/health', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 30s
+    networks: [move-net]
+
+  move-classification:
+    build:
+      context: ./services/move-classification
+      dockerfile: Dockerfile
+    container_name: move-classification
+    env_file: .env
+    environment:
+      PORT: ${CLASSIFICATION_PORT:-8001}
+    ports:
+      - "${CLASSIFICATION_PORT:-8001}:8001"
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks: [move-net]
+
+  move-gps-ingestion:
+    build:
+      context: ./services/move-gps-ingestion
+      dockerfile: Dockerfile
+    container_name: move-gps-ingestion
+    env_file: .env
+    environment:
+      NODE_ENV: development
+      PORT: ${GPS_INGESTION_PORT:-3001}
+    ports:
+      - "${GPS_INGESTION_PORT:-3001}:3001"
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3001/health', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 20s
+    networks: [move-net]
+
+  move-monitoring:
+    build:
+      context: ./services/move-monitoring
+      dockerfile: Dockerfile
+    container_name: move-monitoring
+    env_file: .env
+    environment:
+      NODE_ENV: development
+      PORT: ${MONITORING_PORT:-3002}
+    ports:
+      - "${MONITORING_PORT:-3002}:3002"
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3002/health', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 20s
+    networks: [move-net]
+
+  move-geo-ui:
+    build:
+      context: ./frontend/move-geo-ui
+      dockerfile: Dockerfile
+    container_name: move-geo-ui
+    ports:
+      - "8080:80"
+    depends_on:
+      move-api: { condition: service_started }
+    networks: [move-net]
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: move-prometheus
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    volumes:
+      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    networks: [move-net]
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: move-grafana
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    ports:
+      - "${GRAFANA_PORT:-3003}:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./infra/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./infra/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+    depends_on:
+      - prometheus
+    networks: [move-net]
+
+networks:
+  move-net:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  redis-data:
+  prometheus-data:
+  grafana-data:

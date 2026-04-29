@@ -1,0 +1,28 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  - job_name: move-api
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["move-api:3000"]
+
+  - job_name: move-classification
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["move-classification:8001"]
+
+  - job_name: move-gps-ingestion
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["move-gps-ingestion:3001"]
+
+  - job_name: move-monitoring
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["move-monitoring:3002"]
