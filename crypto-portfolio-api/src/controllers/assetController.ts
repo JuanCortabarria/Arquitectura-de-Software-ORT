@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express';
 import { ZodError } from 'zod';
 import { assetService } from '../services/assetService';
+import { reportService } from '../services/reportService';
 import { logger } from '../config/logger';
 
 // Controller de activos.
@@ -58,6 +59,24 @@ export const assetController = {
       const id = String(req.params.id);
       const asset = await assetService.getById(id);
       res.status(200).json(asset);
+    } catch (err) {
+      handleError(err, res);
+    }
+  },
+
+  async enqueueReport(_req: Request, res: Response): Promise<void> {
+    try {
+      const result = await reportService.enqueueReport();
+      res.status(202).json(result);
+    } catch (err) {
+      handleError(err, res);
+    }
+  },
+
+  async getReportStats(_req: Request, res: Response): Promise<void> {
+    try {
+      const stats = await reportService.getStats();
+      res.status(200).json(stats);
     } catch (err) {
       handleError(err, res);
     }

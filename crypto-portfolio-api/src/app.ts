@@ -1,6 +1,7 @@
 import express from 'express';
 import assetRoutes from './routes/assetRoutes';
 import marketRoutes from './routes/marketRoutes';
+import preferenceRoutes from './routes/preferenceRoutes';
 
 // Construcción del Express app.
 //
@@ -14,5 +15,6 @@ app.use(express.json());
 
 app.use('/assets', assetRoutes);
 app.use('/market', marketRoutes);
+app.use('/preferences', preferenceRoutes);
 
 export default app;

@@ -8,6 +8,7 @@ import { runPipeline } from '../pipeline/pipeline';
 import { validationFilter } from '../pipeline/ingestion/validationFilter';
 import { normalizationFilter } from '../pipeline/ingestion/normalizationFilter';
 import { currencyConversionFilter } from '../pipeline/ingestion/currencyConversionFilter';
+import { assetCacheService } from './assetCacheService';
 
 // AssetService: el corazón de la lógica de negocio.
 //
@@ -43,8 +44,13 @@ export const assetService = {
   },
 
   async getById(id: string): Promise<Asset> {
+    const cachedAsset = await assetCacheService.get(id);
+    if (cachedAsset) return cachedAsset;
+
     const asset = await assetRepository.findById(id);
     if (!asset) throw new Error('NOT_FOUND: Activo no encontrado');
+
+    await assetCacheService.set(asset);
     return asset;
   },
 
@@ -77,6 +83,7 @@ export const assetService = {
 
     await assetRepository.create(asset);
     await auditRepository.append(buildAuditLog(asset.id, 'CREATE'));
+    await assetCacheService.set(asset);
 
     return asset;
   },
@@ -101,6 +108,7 @@ export const assetService = {
     if (!updated) throw new Error('NOT_FOUND: Activo no encontrado');
 
     await auditRepository.append(buildAuditLog(id, 'UPDATE'));
+    await assetCacheService.invalidate(id);
     return updated;
   },
 
@@ -112,6 +120,7 @@ export const assetService = {
     // auditRepository es independiente, el historial sigue disponible
     // aunque el activo ya no exista.
     await auditRepository.append(buildAuditLog(id, 'DELETE'));
+    await assetCacheService.invalidate(id);
   },
 
   async getHistory(id: string): Promise<AuditLog[]> {

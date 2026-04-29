@@ -7,3 +7,4 @@ Arquitectura de Software
 - [x] Parte 2: Arquitectura Empresarial y Resiliencia (Capas, Zod, UUID, Jest, Auditoría, Winston, Rate Limiting)
 - [x] Parte 3: Procesamiento de Flujos con Pipes & Filters (Pipeline Runner, Filtros de Ingesta, Filtros de Análisis, Testing)
 - [x] Parte 4: Persistencia y Gestión de Datos Real (MySQL + Sequelize, MongoDB + Mongoose, Docker Compose, Migraciones)
+- [x] Parte 5: Escalabilidad y Mensajería Asíncrona (Redis, Bull Queue, Worker, Caché, Preferencias, Contador Atómico)

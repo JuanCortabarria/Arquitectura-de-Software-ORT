@@ -5,11 +5,12 @@
 // "qué pasó" y el "cuándo". Estos logs nunca se borran (ni siquiera
 // cuando el activo asociado se elimina), así queda la trazabilidad.
 
-export type AuditAction = 'CREATE' | 'UPDATE' | 'DELETE';
+export type AuditAction = 'CREATE' | 'UPDATE' | 'DELETE' | 'REPORT_GENERATED';
 
 export interface AuditLog {
   id: string;          // UUID propio del log
   assetId: string;     // ID del activo al que se refiere
   action: AuditAction; // Tipo de operación
   timestamp: Date;     // Cuándo ocurrió
+  metadata?: Record<string, unknown>; // Datos extra para eventos globales/reportes
 }

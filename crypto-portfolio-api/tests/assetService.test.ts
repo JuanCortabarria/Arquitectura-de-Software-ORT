@@ -1,6 +1,7 @@
 import { assetService } from '../src/services/assetService';
 import { assetRepository } from '../src/repositories/assetRepository';
 import { auditRepository } from '../src/repositories/auditRepository';
+import { assetCacheService } from '../src/services/assetCacheService';
 
 // Tests unitarios del AssetService.
 //
@@ -12,6 +13,10 @@ describe('assetService', () => {
   beforeEach(async () => {
     await assetRepository._reset();
     await auditRepository._reset();
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
   });
 
   it('crea un activo con un id UUID válido', async () => {
@@ -127,5 +132,60 @@ describe('assetService', () => {
       expect(new Date(history[i]!.timestamp).getTime())
         .toBeGreaterThanOrEqual(new Date(history[i - 1]!.timestamp).getTime());
     }
+  });
+
+  it('getById guarda en caché cuando consulta desde MySQL', async () => {
+    const asset = await assetService.create({
+      symbol: 'BTC',
+      name: 'Bitcoin',
+      quantity: 1,
+      purchasePrice: 50000,
+    });
+
+    const cacheGetSpy = jest.spyOn(assetCacheService, 'get').mockResolvedValueOnce(null);
+    const cacheSetSpy = jest.spyOn(assetCacheService, 'set').mockResolvedValueOnce();
+    const repositorySpy = jest.spyOn(assetRepository, 'findById');
+
+    const found = await assetService.getById(asset.id);
+
+    expect(found.id).toBe(asset.id);
+    expect(cacheGetSpy).toHaveBeenCalledWith(asset.id);
+    expect(repositorySpy).toHaveBeenCalledWith(asset.id);
+    expect(cacheSetSpy).toHaveBeenCalledWith(found);
+  });
+
+  it('getById devuelve el activo desde caché sin consultar MySQL', async () => {
+    const cachedAsset = {
+      id: 'cached-id',
+      symbol: 'BTC',
+      name: 'Bitcoin',
+      quantity: 1,
+      purchasePrice: 50000,
+    };
+
+    jest.spyOn(assetCacheService, 'get').mockResolvedValueOnce(cachedAsset);
+    const repositorySpy = jest.spyOn(assetRepository, 'findById');
+
+    const found = await assetService.getById(cachedAsset.id);
+
+    expect(found).toEqual(cachedAsset);
+    expect(repositorySpy).not.toHaveBeenCalled();
+  });
+
+  it('update y delete invalidan la caché del activo', async () => {
+    const asset = await assetService.create({
+      symbol: 'BTC',
+      name: 'Bitcoin',
+      quantity: 1,
+      purchasePrice: 50000,
+    });
+    const invalidateSpy = jest.spyOn(assetCacheService, 'invalidate').mockResolvedValue();
+
+    await assetService.update(asset.id, { quantity: 2 });
+    await assetService.delete(asset.id);
+
+    expect(invalidateSpy).toHaveBeenCalledTimes(2);
+    expect(invalidateSpy).toHaveBeenNthCalledWith(1, asset.id);
+    expect(invalidateSpy).toHaveBeenNthCalledWith(2, asset.id);
   });
 });

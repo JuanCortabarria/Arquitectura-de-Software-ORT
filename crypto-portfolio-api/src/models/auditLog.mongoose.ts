@@ -17,14 +17,15 @@ const auditLogSchema = new Schema<AuditLog>(
     assetId: { type: String, required: true, index: true },
     action: {
       type: String,
-      enum: ['CREATE', 'UPDATE', 'DELETE'],
+      enum: ['CREATE', 'UPDATE', 'DELETE', 'REPORT_GENERATED'],
       required: true,
     },
     timestamp: { type: Date, required: true },
+    metadata: { type: Schema.Types.Mixed, required: false },
   },
   {
-    // Desactivamos el _id autogenerado de Mongo; usamos nuestro UUID.
-    _id: false,
+    // Mongo mantiene su _id interno y además guardamos nuestro UUID público
+    // en "id". Esto evita errores de Mongoose al persistir documentos raíz.
     // No necesitamos createdAt/updatedAt de Mongoose.
     timestamps: false,
   },

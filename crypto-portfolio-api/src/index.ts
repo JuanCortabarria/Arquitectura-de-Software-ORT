@@ -3,6 +3,8 @@ import app from './app';
 import { logger } from './config/logger';
 import { sequelize } from './config/database';
 import { connectMongo, disconnectMongo } from './config/mongodb';
+import { connectRedis, disconnectRedis } from './config/redis';
+import { closeReportQueue } from './queues/reportQueue';
 
 // Punto de entrada del servidor.
 //
@@ -32,13 +34,16 @@ async function bootstrap(): Promise<void> {
     // 3. Conectar a MongoDB
     await connectMongo();
 
-    // 4. Levantar el servidor HTTP
+    // 4. Conectar a Redis (caché, preferencias y Bull Queue)
+    await connectRedis();
+
+    // 5. Levantar el servidor HTTP
     const server = app.listen(PORT, () => {
       logger.info(`Servidor corriendo en http://localhost:${PORT}`);
       logger.info(`API externa: ${CRYPTO_API_URL}`);
     });
 
-    // 5. Graceful shutdown: detectar SIGTERM e SIGINT
+    // 6. Graceful shutdown: detectar SIGTERM e SIGINT
     const shutdown = async (signal: string) => {
       logger.info(`Señal ${signal} recibida, iniciando graceful shutdown...`);
 
@@ -46,6 +51,10 @@ async function bootstrap(): Promise<void> {
         logger.info('Servidor HTTP cerrado');
 
         try {
+          // Cerrar cola Bull y Redis
+          await closeReportQueue();
+          await disconnectRedis();
+
           // Cerrar conexión a MongoDB
           await disconnectMongo();
 

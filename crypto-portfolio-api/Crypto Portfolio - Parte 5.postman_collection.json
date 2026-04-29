@@ -1,0 +1,97 @@
+{
+  "info": {
+    "_postman_id": "8e9c9d62-6e82-49cf-9df1-cf0e3f5d2b15",
+    "name": "Crypto Portfolio - Parte 5",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Get Asset by ID (cache Redis)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseURL}}/assets/{{assetId}}",
+          "host": ["{{baseURL}}"],
+          "path": ["assets", "{{assetId}}"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Update User Preferences",
+      "request": {
+        "method": "PUT",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"displayCurrency\": \"USD\",\n  \"alertLimit\": 1000\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseURL}}/preferences/{{userId}}",
+          "host": ["{{baseURL}}"],
+          "path": ["preferences", "{{userId}}"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Get User Preferences",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseURL}}/preferences/{{userId}}",
+          "host": ["{{baseURL}}"],
+          "path": ["preferences", "{{userId}}"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Enqueue Portfolio Report",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{baseURL}}/assets/report",
+          "host": ["{{baseURL}}"],
+          "path": ["assets", "report"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Get Report Stats",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseURL}}/assets/reports/stats",
+          "host": ["{{baseURL}}"],
+          "path": ["assets", "reports", "stats"]
+        }
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseURL",
+      "value": "http://localhost:4000"
+    },
+    {
+      "key": "assetId",
+      "value": ""
+    },
+    {
+      "key": "userId",
+      "value": "user-1"
+    }
+  ]
+}

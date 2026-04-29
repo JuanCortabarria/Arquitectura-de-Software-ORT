@@ -15,6 +15,11 @@ router.get('/', assetController.getAll);
 // no confunda "analyze" con un id.
 router.post('/analyze', analyticsController.analyze);
 
+// Parte 5: reportes asíncronos y estadísticas van ANTES de /:id para
+// que Express no confunda "report" o "reports" con ids de activos.
+router.post('/report', assetController.enqueueReport);
+router.get('/reports/stats', assetController.getReportStats);
+
 router.get('/:id', assetController.getById);
 
 // La validación del POST /assets ahora la hace el ValidationFilter

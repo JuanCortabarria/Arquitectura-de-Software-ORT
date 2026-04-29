@@ -11,9 +11,5 @@ module.exports = {
   haste: {
     forceNodeFilesystemAPI: true,
   },
-  // Conectar a MySQL y MongoDB antes de los tests
-  globalSetup: '<rootDir>/tests/setup.ts',
-  // Cerrar conexiones al terminar
-  globalTeardown: '<rootDir>/tests/teardown.ts',
   forceExit: true,
 };

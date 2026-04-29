@@ -1,7 +1,9 @@
-# Orquestación de servicios para Parte 4:
+# Orquestación de servicios para Parte 5:
 #   - mysql:   Base de datos relacional para Asset (Sequelize)
 #   - mongodb: Base de datos documental para AuditLog (Mongoose)
+#   - redis:   Caché, preferencias y backend de Bull Queue
 #   - api:     API REST Node.js/Express
+#   - worker:  Procesador asíncrono de reportes Bull
 #
 # Mejoras implementadas:
 #   - Limpieza de volúmenes al hacer down: docker compose down -v
@@ -49,6 +51,21 @@ services:
     networks:
       - crypto_network
 
+  redis:
+    image: redis:7-alpine
+    container_name: crypto_redis
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - crypto_network
+
   api:
     build:
       context: .
@@ -68,19 +85,58 @@ services:
       MYSQL_DATABASE: crypto_portfolio
       # MongoDB
       MONGODB_URI: mongodb://mongodb:27017/crypto_portfolio
+      # Redis
+      REDIS_URL: redis://redis:6379
+      ASSET_CACHE_TTL_SECONDS: 60
+      REPORT_GENERATION_DELAY_MS: 1500
     depends_on:
       mysql:
         condition: service_healthy
       mongodb:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     networks:
       - crypto_network
     # Graceful shutdown: espera hasta 30s para cerrar conexiones limpiamente
     stop_grace_period: 30s
 
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: crypto_worker
+    restart: unless-stopped
+    command: ['node', 'dist/workers/reportWorker.js']
+    environment:
+      CRYPTO_API_URL: https://min-api.cryptocompare.com/data/price
+      # MySQL
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_USER: root
+      MYSQL_PASSWORD: secret
+      MYSQL_DATABASE: crypto_portfolio
+      # MongoDB
+      MONGODB_URI: mongodb://mongodb:27017/crypto_portfolio
+      # Redis
+      REDIS_URL: redis://redis:6379
+      ASSET_CACHE_TTL_SECONDS: 60
+      REPORT_GENERATION_DELAY_MS: 1500
+    depends_on:
+      mysql:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - crypto_network
+    stop_grace_period: 30s
+
 volumes:
   mysql_data:
   mongo_data:
+  redis_data:
 
 networks:
   crypto_network:

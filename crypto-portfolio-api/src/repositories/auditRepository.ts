@@ -28,6 +28,7 @@ export const auditRepository = {
       assetId: doc.assetId,
       action: doc.action,
       timestamp: doc.timestamp,
+      metadata: doc.metadata,
     }));
   },
 
